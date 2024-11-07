@@ -1,10 +1,15 @@
 use std::io;
+use std::io::Error;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use crossterm::event::KeyCode;
 
 use crossterm::event::KeyEventKind;
 
 use crossterm::event::Event;
+use ratatui::style::Color::Red;
+use ratatui::style::Style;
 use ratatui::widgets::Widget;
 
 use crate::EventHandler;
@@ -25,17 +30,24 @@ use crate::PickerItem;
 
 #[derive(Debug)]
 pub struct Picker {
-    pub(crate) items: Vec<PickerItem>,
+    pub(crate) items: Vec<Arc<Mutex<PickerItem>>>,
     pub(crate) index: u32,
     pub(crate) title: String,
+    pub focussed: bool,
 }
 
 impl Picker {
-    pub fn new(items: Vec<PickerItem>, title: String, index: Option<u32>) -> Self {
+    pub fn new(
+        items: Vec<Arc<Mutex<PickerItem>>>,
+        title: String,
+        index: Option<u32>,
+        focussed: bool,
+    ) -> Self {
         Self {
             items,
             index: index.unwrap_or(0),
             title,
+            focussed,
         }
     }
 
@@ -69,7 +81,21 @@ impl Picker {
 
     pub fn change_selected(&mut self) -> io::Result<()> {
         for (i, item) in self.items.iter_mut().enumerate() {
-            item.selected = i as u32 == self.index;
+            let is_selected = i as u32 == self.index;
+
+            let mut selected_item = match item.lock() {
+                Ok(guard) => guard,
+                Err(poisoned) => poisoned.into_inner(), // Recover from a poisoned lock
+            };
+
+            selected_item.selected = is_selected;
+            if is_selected {
+                selected_item.set_style(Style::default().bg(Red))?;
+            } else {
+                selected_item.set_style(Style::default().bg(ratatui::style::Color::Reset))?;
+            }
+
+            // item.lock().unwrap().selected = i as u32 == self.index;
         }
         Ok(())
     }
@@ -101,13 +127,13 @@ impl WidgetRef for Picker {
                 height: item_height,
             };
 
-            item.render(item_area, buf);
+            item.lock().unwrap().render(item_area, buf);
         }
     }
 }
 
 impl EventHandler for Picker {
-    fn handle_event(&mut self, event: &Event) -> Result<(), io::Error> {
+    fn handle_event(&mut self, event: &Event) -> Result<(), Error> {
         match event {
             Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
                 match key_event.code {

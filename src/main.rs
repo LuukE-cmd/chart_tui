@@ -31,13 +31,31 @@ pub struct App {
 
 impl App {
     pub fn init(&mut self) -> io::Result<()> {
-        let items = vec![
-            PickerItem::new("Item 1", true),
-            PickerItem::new("Item 2", false), // Marking this item as selected
-            PickerItem::new("Item 3", false),
-        ];
         let title = "test".to_string();
-        let picker = Arc::new(Mutex::new(Picker::new(items, title, Some(0))));
+        let picker = Arc::new(Mutex::new(Picker::new(vec![], title, Some(0), true)));
+        let items = vec![
+            Arc::new(Mutex::new(PickerItem::new(
+                "Item 1",
+                true,
+                Arc::downgrade(&picker),
+            ))),
+            Arc::new(Mutex::new(PickerItem::new(
+                "Item 2",
+                false,
+                Arc::downgrade(&picker),
+            ))), // Marking this item as selected
+            Arc::new(Mutex::new(PickerItem::new(
+                "Item 3",
+                false,
+                Arc::downgrade(&picker),
+            ))),
+        ];
+
+        for item in &items {
+            self.add_event_handler(item.clone());
+        }
+
+        picker.lock().unwrap().items = items;
 
         self.widgets.push(picker.clone());
         self.add_event_handler(picker);
