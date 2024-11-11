@@ -1,34 +1,49 @@
 use crossterm::event::{Event, KeyCode, KeyEventKind};
 use ratatui::{
     buffer::Buffer,
-    style::{Color, Style, Stylize},
+    style::{Color, Style},
     widgets::{Block, Borders, Paragraph, Widget, WidgetRef},
 };
 use std::{
-    fmt::Debug,
     io,
-    sync::{Mutex, Weak},
+    sync::{Arc, Mutex, Weak},
 };
 
 use crate::Picker;
 
-#[derive(Debug)]
+pub type CallbackFunction = Option<Arc<Mutex<dyn FnMut() -> io::Result<()> + Send + Sync>>>;
+
 pub struct PickerItem {
     pub text: String,
     pub selected: bool,
     parent: Weak<Mutex<Picker>>,
     borders: Borders,
     style: Style,
+    callback: CallbackFunction,
 }
 
 impl PickerItem {
-    pub fn new(input_text: &str, selected: bool, parent: Weak<Mutex<Picker>>) -> Self {
+    pub fn new(
+        input_text: &str,
+        selected: bool,
+        parent: Weak<Mutex<Picker>>,
+        callback: CallbackFunction,
+    ) -> Self {
+        let mut style = Style::default();
+        let mut borders = Borders::NONE;
+
+        if selected {
+            style = Style::default().bg(Color::Red);
+            borders = Borders::ALL;
+        }
+
         PickerItem {
             text: input_text.to_string(),
             selected,
             parent,
-            borders: Borders::NONE,
-            style: Style::default().fg(Color::Red),
+            borders,
+            style,
+            callback,
         }
     }
 
@@ -40,6 +55,11 @@ impl PickerItem {
     pub fn set_borders(&mut self, new_borders: Borders) -> io::Result<()> {
         self.borders = new_borders;
         Ok(())
+    }
+
+    pub fn set_callback(&mut self, new_callback: CallbackFunction) -> &Self {
+        self.callback = new_callback;
+        self
     }
 }
 
@@ -63,7 +83,11 @@ impl EventHandler for PickerItem {
                     && self.parent.upgrade().unwrap().lock().unwrap().focussed
                 {
                     self.text = "yeet".to_string();
-                    self.style = Style::default().bg(Color::Green)
+                    self.style = Style::default().bg(Color::Green);
+
+                    if let Some(callback) = &mut self.callback {
+                        callback.lock().unwrap()()?;
+                    }
                 }
             }
             _ => {}
@@ -72,6 +96,6 @@ impl EventHandler for PickerItem {
     }
 }
 
-pub trait EventHandler: Debug {
+pub trait EventHandler {
     fn handle_event(&mut self, event: &Event) -> Result<(), io::Error>;
 }

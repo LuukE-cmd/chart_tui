@@ -1,34 +1,18 @@
 use std::io;
 use std::io::Error;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
-use crossterm::event::KeyCode;
-
-use crossterm::event::KeyEventKind;
-
-use crossterm::event::Event;
-use ratatui::style::Color::Red;
-use ratatui::style::Style;
-use ratatui::widgets::Widget;
-
-use crate::EventHandler;
-
-use ratatui::layout::Margin;
-
-use ratatui::widgets::Borders;
-
-use ratatui::widgets::Block;
+use crossterm::event::{Event, KeyCode, KeyEventKind};
 
 use ratatui::buffer::Buffer;
+use ratatui::layout::{Margin, Rect};
+use ratatui::style::Color;
+use ratatui::style::Style;
+use ratatui::widgets::{Block, Borders, Widget, WidgetRef};
 
-use ratatui::layout::Rect;
-
-use ratatui::widgets::WidgetRef;
-
+use crate::EventHandler;
 use crate::PickerItem;
 
-#[derive(Debug)]
 pub struct Picker {
     pub(crate) items: Vec<Arc<Mutex<PickerItem>>>,
     pub(crate) index: u32,
@@ -63,7 +47,7 @@ impl Picker {
             i if i < max_index => i + 1, // Otherwise, increment the index
             _ => self.index,          // Default case (although this shouldn't be needed)
         };
-        self.change_selected()?;
+        self.update_selection()?;
         Ok(())
     }
 
@@ -75,11 +59,11 @@ impl Picker {
             i if i > 0 => i - 1, // Otherwise, decrement the index
             _ => self.index,     // Default case (shouldn't be needed)
         };
-        self.change_selected()?;
+        self.update_selection()?;
         Ok(())
     }
 
-    pub fn change_selected(&mut self) -> io::Result<()> {
+    pub fn update_selection(&mut self) -> io::Result<()> {
         for (i, item) in self.items.iter_mut().enumerate() {
             let is_selected = i as u32 == self.index;
 
@@ -90,12 +74,12 @@ impl Picker {
 
             selected_item.selected = is_selected;
             if is_selected {
-                selected_item.set_style(Style::default().bg(Red))?;
+                selected_item.set_style(Style::default().bg(Color::Red))?;
+                selected_item.set_borders(Borders::ALL)?;
             } else {
                 selected_item.set_style(Style::default().bg(ratatui::style::Color::Reset))?;
+                selected_item.set_borders(Borders::NONE)?;
             }
-
-            // item.lock().unwrap().selected = i as u32 == self.index;
         }
         Ok(())
     }
@@ -127,7 +111,9 @@ impl WidgetRef for Picker {
                 height: item_height,
             };
 
-            item.lock().unwrap().render(item_area, buf);
+            if let Ok(item) = item.try_lock() {
+                item.render(item_area, buf)
+            }
         }
     }
 }
