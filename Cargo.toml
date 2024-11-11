@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+calamine = { version = "0.26.1", features = ["chrono"] }
 clippy = "0.0.302"
 crossterm = "0.28.1"
 fmt = "0.1.0"
