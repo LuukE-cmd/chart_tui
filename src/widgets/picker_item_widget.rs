@@ -57,6 +57,7 @@ impl PickerItem {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn set_callback(&mut self, new_callback: CallbackFunction) -> &Self {
         self.callback = new_callback;
         self
@@ -82,7 +83,7 @@ impl EventHandler for PickerItem {
                     && self.selected
                     && self.parent.upgrade().unwrap().lock().unwrap().focussed
                 {
-                    self.text = "yeet".to_string();
+                    // self.text = "yeet".to_string();
                     self.style = Style::default().bg(Color::Green);
 
                     if let Some(callback) = &mut self.callback {

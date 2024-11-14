@@ -203,7 +203,7 @@ fn build_open_file_func(
             return Err(io::Error::new(io::ErrorKind::NotFound, "File path error"));
         };
 
-        let mut workbook: Xlsx<_> = open_workbook(path_str).map_err(|e: calamine::XlsxError| {
+        let workbook: Xlsx<_> = open_workbook(path_str).map_err(|e: calamine::XlsxError| {
             io::Error::new(io::ErrorKind::InvalidData, e.to_string())
         })?;
 
@@ -257,9 +257,9 @@ fn add_event_handler(
 ) {
     if let Ok(mut event_queue) = event_queue.try_lock() {
         event_queue.push(Arc::downgrade(&handler));
-        eprintln!("{:?}", event_queue);
+        //eprintln!("{:?}", event_queue);
     } else {
-        eprintln!("Poisoned lock in add event handler");
+        //eprintln!("Poisoned lock in add event handler");
     }
 }
 

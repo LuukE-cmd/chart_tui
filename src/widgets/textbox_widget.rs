@@ -14,6 +14,7 @@ pub struct TextBox {
     pub(crate) text: String,
 }
 
+#[allow(dead_code)]
 impl TextBox {
     pub fn new(border: Borders, color: Color, text: String) -> Self {
         TextBox {
